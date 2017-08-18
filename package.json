@@ -1,0 +1,24 @@
+{
+  "name": "serverstats",
+  "version": "1.0.0",
+  "description": "ServerStats",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "https://cerx.pw",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "gamedig": "^1.0.36",
+    "mongorito": "^3.0.3"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CerxMe/ServerStats.git"
+  },
+  "bugs": {
+    "url": "https://github.com/CerxMe/ServerStats/issues"
+  },
+  "homepage": "https://github.com/CerxMe/ServerStats#readme"
+}
