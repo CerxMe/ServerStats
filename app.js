@@ -4,32 +4,45 @@ const {Database, Model} = require('mongorito')
 const db = new Database('localhost/ServerStats')
 class Server extends Model {}
 class Player extends Model {}
-Server.embeds('onlinePlayers', Player)
 db.register(Server)
 db.register(Player)
 
 const servers = ['my.elkia.life']
 
-async function doStuff (host) {
+async function checkServer (host) {
+  // database stuff
+  let server = await Server.findOne({host})
+  server = server === null ? new Server({host}) : server // if there's no database entry, create a new one
+
   // query the server
   let queryOptions = {
     type: 'minecraft',
     host: host
   }
-  const queryResponse = await Gamedig.query(queryOptions)
+  await Gamedig.query(queryOptions)
+      // if there's an error, set the server status to offline
+      .catch(() => {
+        server.set({'status': false})
+      })
+      // process the data
+      .then(queryResponse => {
+        server.set({
+          'version': queryResponse.raw.version,
+          'status': true
+        })
 
-  // database stuff
-  let server = await Server.findOne({host: host})
-  server = server === null ? new Server({ host }) : server // if there's no database entry, create a new one
-   //  .catch(() => {
-   //    server.status = false // server is offline
-   //  })
-  server.set({
-    'version': queryResponse.raw.version,
-    'onlinePlayers': queryResponse.players.map(name => {
-      return ({'ign': name, 'lasseen': new Date()})
-    })
-  })
+        queryResponse.players.map(ign => ign.name).forEach(async ign => {
+          let player = await Player.findOne({ign})
+          player = player === null ? new Player({ign, added: new Date()}) : player // if there's no database entry, create a new one
+          player.set({
+            lastSeen: {
+              host,
+              time: new Date()
+            }
+          })
+          await player.save().then(console.log(`Updated ${player.get('ign')}`))
+        })
+      })
 
   await server.save()
 }
@@ -37,6 +50,6 @@ async function doStuff (host) {
 db.connect().then(() => {
   // run trough the list of servers and log stuff
   servers.forEach((server) => {
-    doStuff(server).then(console.log(`Updated data for '${server}'`))
+    checkServer(server).then(console.log(`Updated data for '${server}'`))
   })
 }).catch(err => console.log(err))
