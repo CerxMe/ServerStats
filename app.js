@@ -1,15 +1,24 @@
 const Gamedig = require('gamedig')
 
+const dateFormat = require('dateformat')
+
 const {Database, Model} = require('mongorito')
 const db = new Database('localhost/ServerStats')
-class Server extends Model {}
-class Player extends Model {}
+
+class Server extends Model {
+}
+
+class Player extends Model {
+}
+
 db.register(Server)
 db.register(Player)
 
-const servers = ['my.elkia.life']
+const servers = ['my.elkia.life', 'penguin.elkia.cz']
 
 async function checkServer (host) {
+  let now = new Date()
+
   // database stuff
   let server = await Server.findOne({host})
   server = server === null ? new Server({host}) : server // if there's no database entry, create a new one
@@ -20,27 +29,30 @@ async function checkServer (host) {
     host: host
   }
   await Gamedig.query(queryOptions)
-      // if there's an error, set the server status to offline
+  // if there's an error, set the server status to offline
       .catch(() => {
-        server.set({'status': false})
+        // query failed, server is offline
+        server.set('status', false)
       })
       // process the data
       .then(queryResponse => {
-        server.set({
-          'version': queryResponse.raw.version,
-          'status': true
-        })
+        // Update server data
+        server.set('version', queryResponse.raw.version)
+        server.set('status', true)
+
+        // Update players
+        let activehour = `activity.${dateFormat(now, 'dddd')}.${now.getHours()}`
 
         queryResponse.players.map(ign => ign.name).forEach(async ign => {
           let player = await Player.findOne({ign})
-          player = player === null ? new Player({ign, added: new Date()}) : player // if there's no database entry, create a new one
-          player.set({
-            lastSeen: {
-              host,
-              time: new Date()
-            }
+          player = player === null ? new Player({ign, 'joined': now}) : player // if there's no database entry, create a new one
+
+          player.get('lastseen').forEach(place => {
+            console.log(place)
           })
-          await player.save().then(console.log(`Updated ${player.get('ign')}`))
+          // I've tried the .increment() method, did't really work, so this is easier I guess
+          player.set(activehour, player.get(activehour) === undefined ? 1 : player.get(activehour) + 1)
+          await player.save()
         })
       })
 
