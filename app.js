@@ -61,14 +61,24 @@ async function checkServer (host) {
             player.set('sessions', [{'active': true, host, 'start': now}])
           } else {
             // find any active sessions
-            let activesession = player.get('sessions').map(a => { return a.active === true ? a : null })
-            // if there isnt any active session
-            if (activesession[0] === null) {
-              // add a new one
-              player.set('sessions',
-                  player.get('sessions').concat([{'active': true, host, 'start': now}])
-              )
-            }
+            let sessions = player.get('sessions')
+            let counter = 0
+            let activesession = false
+            await sessions.forEach(session => {
+              counter++
+              if (session.active !== undefined) {
+                activesession = true
+              }
+              if (counter === sessions.length) {
+                // if there isnt any active session
+                if (activesession === false) {
+                    // add a new one
+                  player.set('sessions',
+                        player.get('sessions').concat([{'active': true, host, 'start': now}])
+                    )
+                }
+              }
+            })
           }
 
           // Save the player info
