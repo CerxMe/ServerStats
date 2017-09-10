@@ -33,14 +33,14 @@ async function checkServer (host) {
 
   await Gamedig.query(queryOptions)
       // process the data
-      .then(queryResponse => {
+      .then(async queryResponse => {
         // Update server data
         server.set('version', queryResponse.raw.version)
         server.set('status', true)
 
         // Update players
         let activehour = `activity.${dateFormat(now, 'dddd')}.${now.getHours()}`
-        queryResponse.players.map(ign => ign.name).forEach(async ign => {
+        await queryResponse.players.map(ign => ign.name).forEach(async ign => {
           let player = await Player.findOne({ign})
           console.log(`'${host}' : Updating player '${ign}'`)
 
@@ -59,7 +59,19 @@ async function checkServer (host) {
           if (player.get('sessions') === undefined) {
             // first session
             player.set('sessions', [{'active': true, host, 'start': now}])
+          } else {
+            // find any active sessions
+            let activesession = player.get('sessions').map(a => { return a.active === true ? a : null })
+            // if there isnt any active session
+            if (activesession[0] === null) {
+              // add a new one
+              player.set('sessions',
+                  player.get('sessions').concat([{'active': true, host, 'start': now}])
+              )
+            }
           }
+
+          // Save the player info
           await player.save()
         })
       })
@@ -76,16 +88,16 @@ async function checkServer (host) {
 async function sessionTerminator () {
   // get all players
   let players = await Player.find()
-
   // check them one by one
   await players.forEach(async player => {
     player.set('sessions',
         await player.get('sessions').map(session => {
           // if player has an active session
           if (session.active) {
-            // but it has been more than 5 minutes (300 seconds) since he's been lastseen, terminate that session
-            if (new Date() - player.get('lastseen') > 300) {
-              session.active = false
+            // but it has been more than 5 minutes (300000 miliseconds) since he's been lastseen, terminate that session
+            if (new Date() - player.get('lastseen') >= 300000) {
+              session.active = null
+              delete session.active
               session.end = player.get('lastseen')
               console.log(`Terminated session for ${player.get('ign')}`)
             }
@@ -96,6 +108,7 @@ async function sessionTerminator () {
   })
 }
 
+// Connect to DB and do the magic
 db.connect().then(() => {
   // run trough the list of servers and log stuff
   servers.forEach((server) => {
