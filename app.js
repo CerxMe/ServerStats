@@ -16,8 +16,9 @@ db.register(Server)
 db.register(Player)
 
 // Array of IP's to querry
-const servers = ['my.elkia.life']
+const servers = ['my.elkia.life'] // does not work w/ multiple
 
+// Querry server for data and log those
 async function checkServer (host) {
   let now = new Date()
 
@@ -38,6 +39,13 @@ async function checkServer (host) {
         server.set('version', queryResponse.raw.version)
         server.set('status', true)
 
+        server.set('players', queryResponse.players.length)
+        // new record
+        if (server.get('maxplayers') < queryResponse.players.length) {
+          server.set('maxplayers', queryResponse.players.length)
+          console.log(`'${host}' : New record! There's more players online (${queryResponse.players.length}) than ever before!`)
+        }
+
         // Update players
         let activehour = `activity.${dateFormat(now, 'dddd')}.${now.getHours()}`
         await queryResponse.players.map(ign => ign.name).forEach(async ign => {
@@ -51,17 +59,17 @@ async function checkServer (host) {
           player.set('lastseen', now)
 
           // Activity
-          // I've tried the .increment() method, did't really work, so this is easier I guess
+          // I've tried the .increment() method, did't really work, so this is easier I gu ess
           //                                if there's no data     set it to 1    othervise add one to the curent value
           player.set(activehour, player.get(activehour) === undefined ? 1 : player.get(activehour) + 1)
 
           // Sessions
-          if (player.get('sessions') === undefined) {
+          let sessions = player.get('sessions')
+          if (sessions === undefined) {
             // first session
             player.set('sessions', [{'active': true, host, 'start': now}])
           } else {
             // find any active sessions
-            let sessions = player.get('sessions')
             let counter = 0
             let activesession = false
             await sessions.forEach(session => {
@@ -118,10 +126,19 @@ async function sessionTerminator () {
   })
 }
 
+// I know I know but this whole callback stuff wasnt really working for me soooo
+function sleep (ms) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
 // Connect to DB and do the magic
-db.connect().then(() => {
+db.connect().then(async () => {
   // run trough the list of servers and log stuff
-  servers.forEach((server) => {
-    checkServer(server).then(sessionTerminator())
+  await servers.forEach(async (server) => {
+    await checkServer(server)
+    await sleep(3000)
+    await sessionTerminator()
   })
-}).catch(err => console.log(err))
+  await sleep(6000)
+  db.disconnect()
+})

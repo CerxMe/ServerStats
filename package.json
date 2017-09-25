@@ -10,8 +10,8 @@
   "license": "UNLICENSED",
   "dependencies": {
     "dateformat": "^2.0.0",
-    "gamedig": "^1.0.36",
-    "mongorito": "^3.0.3",
+    "gamedig": "^1.0.37",
+    "mongorito": "^3.0.4",
     "node-schedule": "^1.2.4"
   },
   "devDependencies": {},
